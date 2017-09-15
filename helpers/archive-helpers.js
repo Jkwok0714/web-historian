@@ -30,26 +30,48 @@ exports.readListOfUrls = function(callback) {
     if (err) {
       throw err;
     }
-    // console.log(readData.toString().split('\n'));
     callback(readData.toString().split('\n'));
   });
 };
 
 exports.isUrlInList = function(url, callback) {
   exports.readListOfUrls(function(data) {
-    if (data.indexOf(url) !== -1) {
-      callback(true);
+    callback(data.indexOf(url) !== -1);
+  });
+};
+
+exports.addUrlToList = function(url, callback, res) {
+  fs.appendFile(exports.paths.list, url + '\n', (err) => {
+    if (err) {
+      throw err;
     } else {
-      callback(false);
+      // console.log('Sent data');
+      callback(res);
     }
   });
 };
 
-exports.addUrlToList = function(url, callback) {
-};
-
 exports.isUrlArchived = function(url, callback) {
+  //Check if directory exists in archivedSites
+  fs.stat(exports.paths.archivedSites + '/' + url, (err, files) => {
+    console.log('Checking', exports.paths.archivedSites + url);
+    if (err) {
+      callback(false);
+    } else {
+      callback(true);
+    }
+  });
 };
 
 exports.downloadUrls = function(urls) {
+  for (var url of urls) {
+    exports.isUrlArchived(url, (exists) => {
+      if (!exists) {
+        console.log('Downloading', url);
+        fs.mkdir(exports.paths.archivedSites + '/' + url, () => {
+          console.log('Archived');
+        });
+      }
+    });
+  }
 };
