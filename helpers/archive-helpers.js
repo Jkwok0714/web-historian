@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var http = require('http');
 var _ = require('underscore');
 
 /*
@@ -34,9 +35,9 @@ exports.readListOfUrls = function(callback) {
   });
 };
 
-exports.isUrlInList = function(url, callback) {
+exports.isUrlInList = function(url, callback, res) {
   exports.readListOfUrls(function(data) {
-    callback(data.indexOf(url) !== -1);
+    callback(data.indexOf(url) !== -1, res);
   });
 };
 
@@ -54,7 +55,6 @@ exports.addUrlToList = function(url, callback, res) {
 exports.isUrlArchived = function(url, callback) {
   //Check if directory exists in archivedSites
   fs.stat(exports.paths.archivedSites + '/' + url, (err, files) => {
-    console.log('Checking', exports.paths.archivedSites + url);
     if (err) {
       callback(false);
     } else {
@@ -68,10 +68,27 @@ exports.downloadUrls = function(urls) {
     exports.isUrlArchived(url, (exists) => {
       if (!exists) {
         console.log('Downloading', url);
-        fs.mkdir(exports.paths.archivedSites + '/' + url, () => {
-          console.log('Archived');
+        exports.downloadUrl(url, exports.paths.archivedSites + url, () => {
         });
+        // fs.writeFile(exports.paths.archivedSites + '/' + url, 'google', () => {
+        //   // console.log('Archived');
+        // });
       }
     });
   }
+};
+
+exports.downloadUrl = function(url, dest, callback) {
+  var output = fs.createWriteStream(dest + '/' + url);
+  var req = http.get('http://' + url, (res) => {
+    if (res.statusCode === 200) {
+      res.pipe(output);
+      output.on('finish', () => {
+        output.close(callback);
+      });
+    }
+    req.setTimeout(24000, () => {
+      req.abort();
+    });
+  });
 };
