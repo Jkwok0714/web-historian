@@ -61,6 +61,7 @@ exports.handleRequest = function (req, res) {
       //   console.log('Downloaded');
       // })
     } else {
+
       res.writeHead(404, {'Content-Type': 'text/plain'});
       res.end();
     }

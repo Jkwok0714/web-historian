@@ -64,29 +64,38 @@ exports.isUrlArchived = function(url, callback) {
 };
 
 exports.downloadUrls = function(urls) {
-  for (var url of urls) {
+  // for (var url of urls) {
+
+  var recursiveDL = function(url) {
     exports.isUrlArchived(url, (exists) => {
       if (!exists) {
         console.log('Downloading', url);
-        exports.downloadUrl(url, exports.paths.archivedSites + url, () => {
+        exports.downloadUrl(url, exports.paths.archivedSites, () => {
+          console.log('DL successful');
+          url = urls.shift();
+          if (url !== undefined) {
+            recursiveDL(url);
+          }
         });
-        // fs.writeFile(exports.paths.archivedSites + '/' + url, 'google', () => {
-        //   // console.log('Archived');
-        // });
       }
     });
-  }
+  };
+  // var url = urls.shift();
+  recursiveDL(urls.shift());
+  // }
 };
 
 exports.downloadUrl = function(url, dest, callback) {
+  console.log('Attempt to DL:', url);
   var output = fs.createWriteStream(dest + '/' + url);
   var req = http.get('http://' + url, (res) => {
-    if (res.statusCode === 200) {
-      res.pipe(output);
-      output.on('finish', () => {
-        output.close(callback);
-      });
-    }
+    // if (res.statusCode === 200) {
+    res.pipe(output);
+    output.on('finish', () => {
+      output.close(callback);
+    });
+    // }
+    // console.log('No 200 status code. Got', res.statusCode);
     req.setTimeout(24000, () => {
       req.abort();
     });
