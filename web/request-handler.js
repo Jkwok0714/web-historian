@@ -3,6 +3,7 @@ var url = require('url');
 var fs = require('fs');
 var archive = require('../helpers/archive-helpers');
 var httpHelpers = require('./http-helpers');
+var validUrl = require('valid-url');
 // require more modules/folders here!
 
 exports.handleRequest = function (req, res) {
@@ -47,23 +48,44 @@ exports.handleRequest = function (req, res) {
       });
     } else if (pathname === '/styles.css') {
       httpHelpers.serveAssets(res, pathname, genericCallback);
-    } else if (pathname === '/www.google.com') {
-      console.log('Getting Google @', archive.paths.archivedSites + pathname);
-      fs.readFile(archive.paths.archivedSites + pathname, (err, files) => {
-        if (err) {
-          throw err;
-        }
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.end(files.toString());
-      });
-
-      // archive.downloadUrl(pathname.slice(1), archive.paths.archivedSites, () => {
-      //   console.log('Downloaded');
-      // })
     } else {
-
-      res.writeHead(404, {'Content-Type': 'text/plain'});
-      res.end();
+      var slicedPath = pathname.slice(1);
+      archive.isUrlArchived(slicedPath, (exists) => {
+        if (exists) {
+          console.log('Getting ' + slicedPath +' @', archive.paths.archivedSites + pathname);
+          fs.readFile(archive.paths.archivedSites + pathname, (err, files) => {
+            if (err) {
+              throw err;
+            }
+            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.end(files.toString());
+          });
+        } else {
+          console.log('Not archived, but listed');
+          archive.isUrlInList(slicedPath, (exists) => {
+            if (exists) {
+              httpHelpers.serveAssets(res, '/loading.html', (res, readData) => {
+                // console.log('Attempting to send request');
+                res.writeHead(200, {'Content-Type': 'text/html'});
+                res.end(readData.toString());
+              });
+            } else {
+              if (validUrl.isUri('http://' + url)) {
+                archive.addUrlToList(slicedPath, (res) => {
+                  httpHelpers.serveAssets(res, '/loading.html', (res, readData) => {
+                    // console.log('Attempting to send request');
+                    res.writeHead(200, {'Content-Type': 'text/html'});
+                    res.end(readData.toString());
+                  });
+                }, res);
+              } else {
+                res.writeHead(404, {'Content-Type': 'text/plain'});
+                res.end();
+              }
+            }
+          }, res);
+        }
+      });
     }
 
     // httpHelpers.serveAssets(res, '/../../archives/sites.txt', genericCallback);
